@@ -2,17 +2,22 @@ import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { supabase } from '../services/supabase';
 
+type Participante = {
+  id: number;
+  usuario_id: string;
+  puntos_totales: number;
+};
+
+type Perfil = {
+  id: string;
+  nombre: string;
+};
+
 type RankingItem = {
   id: number;
+  usuario_id: string;
+  nombre: string;
   puntos_totales: number;
-  perfiles:
-    | {
-        nombre: string;
-      }
-    | {
-        nombre: string;
-      }[]
-    | null;
 };
 
 export default function Ranking() {
@@ -26,12 +31,6 @@ export default function Ranking() {
   useEffect(() => {
     cargarRanking();
   }, []);
-
-  function obtenerNombreJugador(perfiles: RankingItem['perfiles']) {
-    if (!perfiles) return 'Sin nombre';
-    if (Array.isArray(perfiles)) return perfiles[0]?.nombre || 'Sin nombre';
-    return perfiles.nombre || 'Sin nombre';
-  }
 
   async function cargarRanking() {
     setCargando(true);
@@ -50,25 +49,54 @@ export default function Ranking() {
 
     setNombreQuiniela(quiniela?.nombre || 'Quiniela');
 
-    const { data, error } = await supabase
+    const { data: participantesData, error: participantesError } = await supabase
       .from('quiniela_participantes')
-      .select(`
-        id,
-        puntos_totales,
-        perfiles!quiniela_participantes_usuario_id_fkey (
-          nombre
-        )
-      `)
+      .select('id, usuario_id, puntos_totales')
       .eq('quiniela_id', Number(id))
       .order('puntos_totales', { ascending: false });
 
-    if (error) {
-      alert(error.message);
+    if (participantesError) {
+      alert(participantesError.message);
       setCargando(false);
       return;
     }
 
-    setRanking((data as unknown as RankingItem[]) || []);
+    const participantes = (participantesData || []) as Participante[];
+    const usuariosIds = participantes.map((p) => p.usuario_id);
+
+    if (usuariosIds.length === 0) {
+      setRanking([]);
+      setCargando(false);
+      return;
+    }
+
+    const { data: perfilesData, error: perfilesError } = await supabase
+      .from('perfiles')
+      .select('id, nombre')
+      .in('id', usuariosIds);
+
+    if (perfilesError) {
+      alert(perfilesError.message);
+      setCargando(false);
+      return;
+    }
+
+    const perfiles = (perfilesData || []) as Perfil[];
+
+    const perfilesMap = new Map<string, string>();
+
+    perfiles.forEach((perfil) => {
+      perfilesMap.set(perfil.id, perfil.nombre || 'Sin nombre');
+    });
+
+    const rankingCompleto: RankingItem[] = participantes.map((participante) => ({
+      id: participante.id,
+      usuario_id: participante.usuario_id,
+      puntos_totales: participante.puntos_totales,
+      nombre: perfilesMap.get(participante.usuario_id) || 'Sin nombre',
+    }));
+
+    setRanking(rankingCompleto);
     setCargando(false);
   }
 
@@ -80,6 +108,7 @@ export default function Ranking() {
             <h1>Ranking</h1>
             <p>{nombreQuiniela}</p>
           </div>
+
           <button className="btn btn-secondary" onClick={() => navigate('/mis-quinielas')}>
             Volver
           </button>
@@ -105,7 +134,7 @@ export default function Ranking() {
                   {ranking.map((item, index) => (
                     <tr key={item.id}>
                       <td>#{index + 1}</td>
-                      <td>{obtenerNombreJugador(item.perfiles)}</td>
+                      <td>{item.nombre}</td>
                       <td>
                         <strong>{item.puntos_totales}</strong>
                       </td>

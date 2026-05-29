@@ -2,6 +2,12 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../services/supabase';
 
+type Perfil = {
+  id: string;
+  nombre: string;
+  rol: string;
+};
+
 type Equipo = {
   id: number;
   nombre: string;
@@ -42,6 +48,8 @@ export default function Admin() {
   const navigate = useNavigate();
 
   const [verificandoAdmin, setVerificandoAdmin] = useState(true);
+
+  const [perfiles, setPerfiles] = useState<Perfil[]>([]);
 
   const [equipos, setEquipos] = useState<Equipo[]>([]);
   const [torneos, setTorneos] = useState<Torneo[]>([]);
@@ -98,8 +106,13 @@ export default function Admin() {
   }
 
   async function cargarDatosIniciales() {
-    await Promise.all([cargarEquipos(), cargarTorneos(), cargarPartidos()]);
-  }
+    await Promise.all([
+        cargarEquipos(),
+        cargarTorneos(),
+        cargarPartidos(),
+        cargarPerfiles(),
+    ]);
+    }
 
   async function cargarEquipos() {
     const { data, error } = await supabase
@@ -453,6 +466,41 @@ export default function Admin() {
     cargarPartidos();
   }
 
+  async function cargarPerfiles() {
+    const { data, error } = await supabase
+        .from('perfiles')
+        .select('id, nombre, rol')
+        .order('nombre', { ascending: true });
+
+    if (error) {
+        alert(error.message);
+        return;
+    }
+
+    setPerfiles((data as Perfil[]) || []);
+    }
+
+    async function cambiarRolUsuario(usuarioId: string, nuevoRol: string) {
+    const confirmar = confirm(`¿Seguro que quieres cambiar este usuario a ${nuevoRol}?`);
+
+    if (!confirmar) return;
+
+    const { error } = await supabase
+        .from('perfiles')
+        .update({
+        rol: nuevoRol,
+        })
+        .eq('id', usuarioId);
+
+    if (error) {
+        alert(error.message);
+        return;
+    }
+
+    alert('Rol actualizado');
+    cargarPerfiles();
+    }
+
   async function recalcularRanking() {
     const { data: participantes, error: participantesError } = await supabase
       .from('quiniela_participantes')
@@ -518,6 +566,65 @@ export default function Admin() {
           </button>
         </div>
 
+        <div className="card">
+  <h2 className="section-title">Usuarios y roles</h2>
+
+  {perfiles.length === 0 ? (
+    <div className="empty">No hay usuarios registrados.</div>
+  ) : (
+    <div className="table-wrapper">
+      <table className="table">
+        <thead>
+          <tr>
+            <th>Nombre</th>
+            <th>Rol actual</th>
+            <th>Acción</th>
+          </tr>
+        </thead>
+
+        <tbody>
+          {perfiles.map((perfil) => (
+            <tr key={perfil.id}>
+              <td>{perfil.nombre || 'Sin nombre'}</td>
+
+              <td>
+                <span
+                  className={
+                    perfil.rol === 'admin'
+                      ? 'badge badge-admin'
+                      : 'badge badge-user'
+                  }
+                >
+                  {perfil.rol}
+                </span>
+              </td>
+
+              <td>
+                {perfil.rol === 'admin' ? (
+                  <button
+                    className="btn btn-secondary"
+                    onClick={() => cambiarRolUsuario(perfil.id, 'jugador')}
+                  >
+                    Hacer jugador
+                  </button>
+                ) : (
+                  <button
+                    className="btn btn-dark"
+                    onClick={() => cambiarRolUsuario(perfil.id, 'admin')}
+                  >
+                    Hacer admin
+                  </button>
+                )}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )}
+</div>
+
+<div className="divider" />
         <div className="grid grid-3">
           <div className="card">
             <h2 className="section-title">Crear torneo</h2>
