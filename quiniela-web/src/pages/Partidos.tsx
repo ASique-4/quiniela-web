@@ -8,16 +8,22 @@ type Partido = {
   estado: string;
   goles_local: number | null;
   goles_visitante: number | null;
-  equipo_local: {
-    nombre: string;
-  };
-  equipo_visitante: {
-    nombre: string;
-  };
-  pronostico?: {
-    goles_local_pred: number;
-    goles_visitante_pred: number;
-  } | null;
+  equipo_local:
+    | {
+        nombre: string;
+      }
+    | {
+        nombre: string;
+      }[]
+    | null;
+  equipo_visitante:
+    | {
+        nombre: string;
+      }
+    | {
+        nombre: string;
+      }[]
+    | null;
 };
 
 export default function Partidos() {
@@ -25,11 +31,39 @@ export default function Partidos() {
   const { id } = useParams();
 
   const [partidos, setPartidos] = useState<Partido[]>([]);
-  const [pronosticos, setPronosticos] = useState<Record<number, { local: string; visitante: string }>>({});
+  const [pronosticos, setPronosticos] = useState<
+    Record<number, { local: string; visitante: string }>
+  >({});
 
   useEffect(() => {
     cargarPartidos();
   }, []);
+
+  function obtenerNombreEquipo(
+    equipo:
+      | {
+          nombre: string;
+        }
+      | {
+          nombre: string;
+        }[]
+      | null
+  ) {
+    if (!equipo) return 'Equipo';
+
+    if (Array.isArray(equipo)) {
+      return equipo[0]?.nombre || 'Equipo';
+    }
+
+    return equipo.nombre || 'Equipo';
+  }
+
+  function partidoYaInicio(fechaPartido: string) {
+    const ahora = new Date();
+    const fecha = new Date(fechaPartido);
+
+    return fecha <= ahora;
+  }
 
   async function cargarPartidos() {
     const { data: sessionData } = await supabase.auth.getSession();
@@ -85,7 +119,10 @@ export default function Partidos() {
       return;
     }
 
-    const pronosticosMap: Record<number, { local: string; visitante: string }> = {};
+    const pronosticosMap: Record<
+      number,
+      { local: string; visitante: string }
+    > = {};
 
     pronosticosData?.forEach((p) => {
       pronosticosMap[p.partido_id] = {
@@ -98,7 +135,11 @@ export default function Partidos() {
     setPartidos((partidosData as Partido[]) || []);
   }
 
-  function cambiarPronostico(partidoId: number, campo: 'local' | 'visitante', valor: string) {
+  function cambiarPronostico(
+    partidoId: number,
+    campo: 'local' | 'visitante',
+    valor: string
+  ) {
     setPronosticos((actual) => ({
       ...actual,
       [partidoId]: {
@@ -109,11 +150,34 @@ export default function Partidos() {
     }));
   }
 
-  async function guardarPronostico(partidoId: number) {
-    const pred = pronosticos[partidoId];
+  async function guardarPronostico(partido: Partido) {
+    if (partido.estado !== 'pendiente') {
+      alert('Este partido ya fue finalizado. No puedes cambiar el pronóstico.');
+      return;
+    }
+
+    if (partidoYaInicio(partido.fecha)) {
+      alert('El partido ya inició. No puedes guardar o modificar el pronóstico.');
+      return;
+    }
+
+    const pred = pronosticos[partido.id];
 
     if (!pred || pred.local === '' || pred.visitante === '') {
       alert('Debes ingresar ambos marcadores');
+      return;
+    }
+
+    const golesLocalPred = Number(pred.local);
+    const golesVisitantePred = Number(pred.visitante);
+
+    if (
+      Number.isNaN(golesLocalPred) ||
+      Number.isNaN(golesVisitantePred) ||
+      golesLocalPred < 0 ||
+      golesVisitantePred < 0
+    ) {
+      alert('Los goles deben ser números válidos mayores o iguales a 0');
       return;
     }
 
@@ -131,9 +195,9 @@ export default function Partidos() {
         {
           quiniela_id: Number(id),
           usuario_id: userId,
-          partido_id: partidoId,
-          goles_local_pred: Number(pred.local),
-          goles_visitante_pred: Number(pred.visitante),
+          partido_id: partido.id,
+          goles_local_pred: golesLocalPred,
+          goles_visitante_pred: golesVisitantePred,
         },
         {
           onConflict: 'quiniela_id,usuario_id,partido_id',
@@ -154,50 +218,75 @@ export default function Partidos() {
 
       {partidos.length === 0 && <p>No hay partidos registrados.</p>}
 
-      {partidos.map((partido) => (
-        <div key={partido.id}>
-          <h3>
-            {partido.equipo_local.nombre} vs {partido.equipo_visitante.nombre}
-          </h3>
+      {partidos.map((partido) => {
+        const nombreLocal = obtenerNombreEquipo(partido.equipo_local);
+        const nombreVisitante = obtenerNombreEquipo(partido.equipo_visitante);
+        const cerradoPorFecha = partidoYaInicio(partido.fecha);
+        const estaFinalizado = partido.estado === 'finalizado';
+        const pronosticoCerrado = cerradoPorFecha || estaFinalizado;
 
-          <p>Fecha: {new Date(partido.fecha).toLocaleString()}</p>
-          <p>Estado: {partido.estado}</p>
+        return (
+          <div key={partido.id}>
+            <h3>
+              {nombreLocal} vs {nombreVisitante}
+            </h3>
 
-          {partido.estado === 'finalizado' ? (
-            <p>
-              Resultado: {partido.goles_local} - {partido.goles_visitante}
-            </p>
-          ) : (
-            <div>
-              <label>{partido.equipo_local.nombre}</label>
-              <input
-                type="number"
-                min="0"
-                value={pronosticos[partido.id]?.local || ''}
-                onChange={(e) =>
-                  cambiarPronostico(partido.id, 'local', e.target.value)
-                }
-              />
+            <p>Fecha: {new Date(partido.fecha).toLocaleString()}</p>
+            <p>Estado: {partido.estado}</p>
 
-              <label>{partido.equipo_visitante.nombre}</label>
-              <input
-                type="number"
-                min="0"
-                value={pronosticos[partido.id]?.visitante || ''}
-                onChange={(e) =>
-                  cambiarPronostico(partido.id, 'visitante', e.target.value)
-                }
-              />
+            {estaFinalizado && (
+              <p>
+                Resultado: {partido.goles_local} - {partido.goles_visitante}
+              </p>
+            )}
 
-              <button onClick={() => guardarPronostico(partido.id)}>
-                Guardar pronóstico
-              </button>
-            </div>
-          )}
+            {pronosticoCerrado ? (
+              <div>
+                <p>
+                  <strong>Pronóstico cerrado</strong>
+                </p>
 
-          <hr />
-        </div>
-      ))}
+                {pronosticos[partido.id] ? (
+                  <p>
+                    Tu pronóstico: {pronosticos[partido.id].local} -{' '}
+                    {pronosticos[partido.id].visitante}
+                  </p>
+                ) : (
+                  <p>No registraste pronóstico para este partido.</p>
+                )}
+              </div>
+            ) : (
+              <div>
+                <label>{nombreLocal}</label>
+                <input
+                  type="number"
+                  min="0"
+                  value={pronosticos[partido.id]?.local || ''}
+                  onChange={(e) =>
+                    cambiarPronostico(partido.id, 'local', e.target.value)
+                  }
+                />
+
+                <label>{nombreVisitante}</label>
+                <input
+                  type="number"
+                  min="0"
+                  value={pronosticos[partido.id]?.visitante || ''}
+                  onChange={(e) =>
+                    cambiarPronostico(partido.id, 'visitante', e.target.value)
+                  }
+                />
+
+                <button onClick={() => guardarPronostico(partido)}>
+                  Guardar pronóstico
+                </button>
+              </div>
+            )}
+
+            <hr />
+          </div>
+        );
+      })}
 
       <button onClick={() => navigate('/mis-quinielas')}>Volver</button>
     </div>
