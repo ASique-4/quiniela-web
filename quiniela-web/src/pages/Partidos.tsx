@@ -31,6 +31,8 @@ export default function Partidos() {
   const { id } = useParams();
 
   const [partidos, setPartidos] = useState<Partido[]>([]);
+  const [cargando, setCargando] = useState(true);
+
   const [pronosticos, setPronosticos] = useState<
     Record<number, { local: string; visitante: string }>
   >({});
@@ -66,6 +68,8 @@ export default function Partidos() {
   }
 
   async function cargarPartidos() {
+    setCargando(true);
+
     const { data: sessionData } = await supabase.auth.getSession();
     const userId = sessionData.session?.user.id;
 
@@ -82,6 +86,7 @@ export default function Partidos() {
 
     if (quinielaError) {
       alert(quinielaError.message);
+      setCargando(false);
       return;
     }
 
@@ -105,6 +110,7 @@ export default function Partidos() {
 
     if (partidosError) {
       alert(partidosError.message);
+      setCargando(false);
       return;
     }
 
@@ -116,6 +122,7 @@ export default function Partidos() {
 
     if (pronosticosError) {
       alert(pronosticosError.message);
+      setCargando(false);
       return;
     }
 
@@ -133,6 +140,7 @@ export default function Partidos() {
 
     setPronosticos(pronosticosMap);
     setPartidos((partidosData as Partido[]) || []);
+    setCargando(false);
   }
 
   function cambiarPronostico(
@@ -210,85 +218,148 @@ export default function Partidos() {
     }
 
     alert('Pronóstico guardado');
+    cargarPartidos();
+  }
+
+  function obtenerBadgeEstado(partido: Partido) {
+    if (partido.estado === 'finalizado') {
+      return <span className="badge badge-finished">Finalizado</span>;
+    }
+
+    if (partidoYaInicio(partido.fecha)) {
+      return <span className="badge badge-closed">Cerrado</span>;
+    }
+
+    return <span className="badge badge-pending">Pendiente</span>;
   }
 
   return (
-    <div>
-      <h1>Partidos</h1>
-
-      {partidos.length === 0 && <p>No hay partidos registrados.</p>}
-
-      {partidos.map((partido) => {
-        const nombreLocal = obtenerNombreEquipo(partido.equipo_local);
-        const nombreVisitante = obtenerNombreEquipo(partido.equipo_visitante);
-        const cerradoPorFecha = partidoYaInicio(partido.fecha);
-        const estaFinalizado = partido.estado === 'finalizado';
-        const pronosticoCerrado = cerradoPorFecha || estaFinalizado;
-
-        return (
-          <div key={partido.id}>
-            <h3>
-              {nombreLocal} vs {nombreVisitante}
-            </h3>
-
-            <p>Fecha: {new Date(partido.fecha).toLocaleString()}</p>
-            <p>Estado: {partido.estado}</p>
-
-            {estaFinalizado && (
-              <p>
-                Resultado: {partido.goles_local} - {partido.goles_visitante}
-              </p>
-            )}
-
-            {pronosticoCerrado ? (
-              <div>
-                <p>
-                  <strong>Pronóstico cerrado</strong>
-                </p>
-
-                {pronosticos[partido.id] ? (
-                  <p>
-                    Tu pronóstico: {pronosticos[partido.id].local} -{' '}
-                    {pronosticos[partido.id].visitante}
-                  </p>
-                ) : (
-                  <p>No registraste pronóstico para este partido.</p>
-                )}
-              </div>
-            ) : (
-              <div>
-                <label>{nombreLocal}</label>
-                <input
-                  type="number"
-                  min="0"
-                  value={pronosticos[partido.id]?.local || ''}
-                  onChange={(e) =>
-                    cambiarPronostico(partido.id, 'local', e.target.value)
-                  }
-                />
-
-                <label>{nombreVisitante}</label>
-                <input
-                  type="number"
-                  min="0"
-                  value={pronosticos[partido.id]?.visitante || ''}
-                  onChange={(e) =>
-                    cambiarPronostico(partido.id, 'visitante', e.target.value)
-                  }
-                />
-
-                <button onClick={() => guardarPronostico(partido)}>
-                  Guardar pronóstico
-                </button>
-              </div>
-            )}
-
-            <hr />
+    <div className="page">
+      <div className="container">
+        <div className="header">
+          <div>
+            <h1>Partidos</h1>
+            <p>Haz tus pronósticos antes de que inicie cada partido.</p>
           </div>
-        );
-      })}
 
-      <button onClick={() => navigate('/mis-quinielas')}>Volver</button>
+          <button
+            className="btn btn-secondary"
+            onClick={() => navigate('/mis-quinielas')}
+          >
+            Volver
+          </button>
+        </div>
+
+        {cargando ? (
+          <div className="card">Cargando partidos...</div>
+        ) : partidos.length === 0 ? (
+          <div className="card empty">No hay partidos registrados.</div>
+        ) : (
+          <div className="grid">
+            {partidos.map((partido) => {
+              const nombreLocal = obtenerNombreEquipo(partido.equipo_local);
+              const nombreVisitante = obtenerNombreEquipo(
+                partido.equipo_visitante
+              );
+
+              const cerradoPorFecha = partidoYaInicio(partido.fecha);
+              const estaFinalizado = partido.estado === 'finalizado';
+              const pronosticoCerrado = cerradoPorFecha || estaFinalizado;
+
+              return (
+                <div className="card match-card" key={partido.id}>
+                  <div className="header" style={{ marginBottom: 0 }}>
+                    <div>
+                      <h2 className="match-title">
+                        {nombreLocal} vs {nombreVisitante}
+                      </h2>
+                      <p>{new Date(partido.fecha).toLocaleString()}</p>
+                    </div>
+
+                    {obtenerBadgeEstado(partido)}
+                  </div>
+
+                  {estaFinalizado && (
+                    <div className="card" style={{ background: '#f9fafb' }}>
+                      <strong>Resultado final:</strong>{' '}
+                      {partido.goles_local} - {partido.goles_visitante}
+                    </div>
+                  )}
+
+                  {pronosticoCerrado ? (
+                    <div className="card" style={{ background: '#f9fafb' }}>
+                      <p style={{ marginTop: 0 }}>
+                        <strong>Pronóstico cerrado</strong>
+                      </p>
+
+                      {pronosticos[partido.id] ? (
+                        <p style={{ marginBottom: 0 }}>
+                          Tu pronóstico:{' '}
+                          <strong>
+                            {pronosticos[partido.id].local} -{' '}
+                            {pronosticos[partido.id].visitante}
+                          </strong>
+                        </p>
+                      ) : (
+                        <p style={{ marginBottom: 0 }}>
+                          No registraste pronóstico para este partido.
+                        </p>
+                      )}
+                    </div>
+                  ) : (
+                    <div>
+                      <div className="score-row">
+                        <div className="form-group">
+                          <label>{nombreLocal}</label>
+                          <input
+                            type="number"
+                            min="0"
+                            value={pronosticos[partido.id]?.local || ''}
+                            onChange={(e) =>
+                              cambiarPronostico(
+                                partido.id,
+                                'local',
+                                e.target.value
+                              )
+                            }
+                          />
+                        </div>
+
+                        <div />
+
+                        <div className="form-group">
+                          <label>{nombreVisitante}</label>
+                          <input
+                            type="number"
+                            min="0"
+                            value={pronosticos[partido.id]?.visitante || ''}
+                            onChange={(e) =>
+                              cambiarPronostico(
+                                partido.id,
+                                'visitante',
+                                e.target.value
+                              )
+                            }
+                          />
+                        </div>
+
+                        <div />
+
+                        <button
+                          className="btn btn-primary"
+                          onClick={() => guardarPronostico(partido)}
+                        >
+                          Guardar
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

@@ -47,6 +47,10 @@ export default function Admin() {
   const [torneos, setTorneos] = useState<Torneo[]>([]);
   const [partidos, setPartidos] = useState<Partido[]>([]);
 
+  const [nombreTorneo, setNombreTorneo] = useState('');
+  const [fechaInicioTorneo, setFechaInicioTorneo] = useState('');
+  const [fechaFinTorneo, setFechaFinTorneo] = useState('');
+
   const [nombreEquipo, setNombreEquipo] = useState('');
 
   const [torneoId, setTorneoId] = useState('');
@@ -90,7 +94,6 @@ export default function Admin() {
     }
 
     setVerificandoAdmin(false);
-
     await cargarDatosIniciales();
   }
 
@@ -193,6 +196,39 @@ export default function Admin() {
     }
 
     return equipo.nombre || 'Equipo';
+  }
+
+  async function crearTorneo(e: React.FormEvent) {
+    e.preventDefault();
+
+    const nombreLimpio = nombreTorneo.trim();
+
+    if (!nombreLimpio || !fechaInicioTorneo || !fechaFinTorneo) {
+      alert('Completa todos los campos del torneo');
+      return;
+    }
+
+    if (fechaFinTorneo < fechaInicioTorneo) {
+      alert('La fecha final no puede ser menor que la fecha inicial');
+      return;
+    }
+
+    const { error } = await supabase.from('torneos').insert({
+      nombre: nombreLimpio,
+      fecha_inicio: fechaInicioTorneo,
+      fecha_fin: fechaFinTorneo,
+    });
+
+    if (error) {
+      alert(error.message);
+      return;
+    }
+
+    alert('Torneo creado');
+    setNombreTorneo('');
+    setFechaInicioTorneo('');
+    setFechaFinTorneo('');
+    cargarTorneos();
   }
 
   async function crearEquipo(e: React.FormEvent) {
@@ -459,172 +495,271 @@ export default function Admin() {
   }
 
   if (verificandoAdmin) {
-    return <p>Verificando permisos...</p>;
+    return (
+      <div className="page">
+        <div className="container">
+          <div className="card">Verificando permisos...</div>
+        </div>
+      </div>
+    );
   }
 
   return (
-    <div>
-      <h1>Panel Admin</h1>
-      <p>Crear equipos, crear partidos y registrar resultados.</p>
-
-      <button onClick={() => navigate('/home')}>Volver al inicio</button>
-
-      <hr />
-
-      <section>
-        <h2>Crear equipo</h2>
-
-        <form onSubmit={crearEquipo}>
+    <div className="page">
+      <div className="container">
+        <div className="header">
           <div>
-            <label>Nombre del equipo</label>
-            <input
-              type="text"
-              value={nombreEquipo}
-              onChange={(e) => setNombreEquipo(e.target.value)}
-              placeholder="Ej. Real Madrid"
-              required
-            />
+            <h1>Panel Admin</h1>
+            <p>Administra torneos, equipos, partidos y resultados.</p>
           </div>
 
-          <button type="submit">Crear equipo</button>
-        </form>
-      </section>
+          <button className="btn btn-secondary" onClick={() => navigate('/home')}>
+            Volver
+          </button>
+        </div>
 
-      <hr />
+        <div className="grid grid-3">
+          <div className="card">
+            <h2 className="section-title">Crear torneo</h2>
 
-      <section>
-        <h2>Crear partido</h2>
-
-        {equipos.length < 2 ? (
-          <p>Debes crear al menos 2 equipos para crear un partido.</p>
-        ) : torneos.length === 0 ? (
-          <p>No hay torneos registrados.</p>
-        ) : (
-          <form onSubmit={crearPartido}>
-            <div>
-              <label>Torneo</label>
-              <select
-                value={torneoId}
-                onChange={(e) => setTorneoId(e.target.value)}
-                required
-              >
-                {torneos.map((torneo) => (
-                  <option key={torneo.id} value={torneo.id}>
-                    {torneo.nombre}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label>Equipo local</label>
-              <select
-                value={equipoLocalId}
-                onChange={(e) => setEquipoLocalId(e.target.value)}
-                required
-              >
-                {equipos.map((equipo) => (
-                  <option key={equipo.id} value={equipo.id}>
-                    {equipo.nombre}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label>Equipo visitante</label>
-              <select
-                value={equipoVisitanteId}
-                onChange={(e) => setEquipoVisitanteId(e.target.value)}
-                required
-              >
-                {equipos.map((equipo) => (
-                  <option key={equipo.id} value={equipo.id}>
-                    {equipo.nombre}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label>Fecha y hora</label>
-              <input
-                type="datetime-local"
-                value={fechaPartido}
-                onChange={(e) => setFechaPartido(e.target.value)}
-                required
-              />
-            </div>
-
-            <button type="submit">Crear partido</button>
-          </form>
-        )}
-      </section>
-
-      <hr />
-
-      <section>
-        <h2>Partidos registrados</h2>
-
-        {partidos.length === 0 && <p>No hay partidos registrados.</p>}
-
-        {partidos.map((partido) => {
-          const nombreLocal = obtenerNombreEquipo(partido.equipo_local);
-          const nombreVisitante = obtenerNombreEquipo(partido.equipo_visitante);
-
-          return (
-            <div key={partido.id}>
-              <h3>
-                {nombreLocal} vs {nombreVisitante}
-              </h3>
-
-              <p>Fecha: {new Date(partido.fecha).toLocaleString()}</p>
-              <p>Estado: {partido.estado}</p>
-
-              {partido.estado === 'finalizado' && (
-                <p>
-                  Resultado actual: {partido.goles_local} -{' '}
-                  {partido.goles_visitante}
-                </p>
-              )}
-
-              <div>
-                <label>{nombreLocal}</label>
+            <form className="form" onSubmit={crearTorneo}>
+              <div className="form-group">
+                <label>Nombre del torneo</label>
                 <input
-                  type="number"
-                  min="0"
-                  value={resultados[partido.id]?.local || ''}
-                  onChange={(e) =>
-                    cambiarResultado(partido.id, 'local', e.target.value)
-                  }
+                  type="text"
+                  value={nombreTorneo}
+                  placeholder="Ej. Mundial 2026"
+                  onChange={(e) => setNombreTorneo(e.target.value)}
+                  required
                 />
-
-                <label>{nombreVisitante}</label>
-                <input
-                  type="number"
-                  min="0"
-                  value={resultados[partido.id]?.visitante || ''}
-                  onChange={(e) =>
-                    cambiarResultado(partido.id, 'visitante', e.target.value)
-                  }
-                />
-
-                <button onClick={() => guardarResultado(partido.id)}>
-                  Guardar resultado
-                </button>
-
-                {partido.estado === 'finalizado' && (
-                  <button onClick={() => reabrirPartido(partido.id)}>
-                    Reabrir partido
-                  </button>
-                )}
               </div>
 
-              <hr />
+              <div className="form-group">
+                <label>Fecha inicio</label>
+                <input
+                  type="date"
+                  value={fechaInicioTorneo}
+                  onChange={(e) => setFechaInicioTorneo(e.target.value)}
+                  required
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Fecha fin</label>
+                <input
+                  type="date"
+                  value={fechaFinTorneo}
+                  onChange={(e) => setFechaFinTorneo(e.target.value)}
+                  required
+                />
+              </div>
+
+              <button className="btn btn-primary" type="submit">
+                Crear torneo
+              </button>
+            </form>
+          </div>
+
+          <div className="card">
+            <h2 className="section-title">Crear equipo</h2>
+
+            <form className="form" onSubmit={crearEquipo}>
+              <div className="form-group">
+                <label>Nombre del equipo</label>
+                <input
+                  type="text"
+                  value={nombreEquipo}
+                  placeholder="Ej. Real Madrid"
+                  onChange={(e) => setNombreEquipo(e.target.value)}
+                  required
+                />
+              </div>
+
+              <button className="btn btn-primary" type="submit">
+                Crear equipo
+              </button>
+            </form>
+          </div>
+
+          <div className="card">
+            <h2 className="section-title">Crear partido</h2>
+
+            {equipos.length < 2 ? (
+              <p>Debes crear al menos 2 equipos para crear un partido.</p>
+            ) : torneos.length === 0 ? (
+              <p>No hay torneos registrados.</p>
+            ) : (
+              <form className="form" onSubmit={crearPartido}>
+                <div className="form-group">
+                  <label>Torneo</label>
+                  <select
+                    value={torneoId}
+                    onChange={(e) => setTorneoId(e.target.value)}
+                    required
+                  >
+                    {torneos.map((torneo) => (
+                      <option key={torneo.id} value={torneo.id}>
+                        {torneo.nombre}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="form-group">
+                  <label>Equipo local</label>
+                  <select
+                    value={equipoLocalId}
+                    onChange={(e) => setEquipoLocalId(e.target.value)}
+                    required
+                  >
+                    {equipos.map((equipo) => (
+                      <option key={equipo.id} value={equipo.id}>
+                        {equipo.nombre}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="form-group">
+                  <label>Equipo visitante</label>
+                  <select
+                    value={equipoVisitanteId}
+                    onChange={(e) => setEquipoVisitanteId(e.target.value)}
+                    required
+                  >
+                    {equipos.map((equipo) => (
+                      <option key={equipo.id} value={equipo.id}>
+                        {equipo.nombre}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="form-group">
+                  <label>Fecha y hora</label>
+                  <input
+                    type="datetime-local"
+                    value={fechaPartido}
+                    onChange={(e) => setFechaPartido(e.target.value)}
+                    required
+                  />
+                </div>
+
+                <button className="btn btn-primary" type="submit">
+                  Crear partido
+                </button>
+              </form>
+            )}
+          </div>
+        </div>
+
+        <div className="divider" />
+
+        <div className="card">
+          <h2 className="section-title">Partidos registrados</h2>
+
+          {partidos.length === 0 ? (
+            <div className="empty">No hay partidos registrados.</div>
+          ) : (
+            <div className="grid">
+              {partidos.map((partido) => {
+                const nombreLocal = obtenerNombreEquipo(partido.equipo_local);
+                const nombreVisitante = obtenerNombreEquipo(
+                  partido.equipo_visitante
+                );
+
+                return (
+                  <div className="card match-card" key={partido.id}>
+                    <div className="header" style={{ marginBottom: 0 }}>
+                      <div>
+                        <h3 className="match-title">
+                          {nombreLocal} vs {nombreVisitante}
+                        </h3>
+                        <p>{new Date(partido.fecha).toLocaleString()}</p>
+                      </div>
+
+                      <span
+                        className={
+                          partido.estado === 'finalizado'
+                            ? 'badge badge-finished'
+                            : 'badge badge-pending'
+                        }
+                      >
+                        {partido.estado}
+                      </span>
+                    </div>
+
+                    {partido.estado === 'finalizado' && (
+                      <p>
+                        Resultado actual:{' '}
+                        <strong>
+                          {partido.goles_local} - {partido.goles_visitante}
+                        </strong>
+                      </p>
+                    )}
+
+                    <div className="score-row">
+                      <div className="form-group">
+                        <label>{nombreLocal}</label>
+                        <input
+                          type="number"
+                          min="0"
+                          value={resultados[partido.id]?.local || ''}
+                          onChange={(e) =>
+                            cambiarResultado(
+                              partido.id,
+                              'local',
+                              e.target.value
+                            )
+                          }
+                        />
+                      </div>
+
+                      <div />
+
+                      <div className="form-group">
+                        <label>{nombreVisitante}</label>
+                        <input
+                          type="number"
+                          min="0"
+                          value={resultados[partido.id]?.visitante || ''}
+                          onChange={(e) =>
+                            cambiarResultado(
+                              partido.id,
+                              'visitante',
+                              e.target.value
+                            )
+                          }
+                        />
+                      </div>
+
+                      <div />
+
+                      <div className="actions">
+                        <button
+                          className="btn btn-success"
+                          onClick={() => guardarResultado(partido.id)}
+                        >
+                          Guardar
+                        </button>
+
+                        {partido.estado === 'finalizado' && (
+                          <button
+                            className="btn btn-danger"
+                            onClick={() => reabrirPartido(partido.id)}
+                          >
+                            Reabrir
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
-          );
-        })}
-      </section>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
