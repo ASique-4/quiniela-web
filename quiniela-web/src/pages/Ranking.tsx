@@ -29,11 +29,7 @@ export default function Ranking() {
 
   function obtenerNombreJugador(perfiles: RankingItem['perfiles']) {
     if (!perfiles) return 'Sin nombre';
-
-    if (Array.isArray(perfiles)) {
-      return perfiles[0]?.nombre || 'Sin nombre';
-    }
-
+    if (Array.isArray(perfiles)) return perfiles[0]?.nombre || 'Sin nombre';
     return perfiles.nombre || 'Sin nombre';
   }
 
@@ -52,13 +48,7 @@ export default function Ranking() {
       return;
     }
 
-    if (!quiniela) {
-      alert('No se encontró la quiniela');
-      setCargando(false);
-      return;
-    }
-
-    setNombreQuiniela(quiniela.nombre);
+    setNombreQuiniela(quiniela?.nombre || 'Quiniela');
 
     const { data, error } = await supabase
       .from('quiniela_participantes')
@@ -78,46 +68,55 @@ export default function Ranking() {
       return;
     }
 
-    setRanking((data as RankingItem[]) || []);
+    setRanking((data as unknown as RankingItem[]) || []);
     setCargando(false);
   }
 
-  if (cargando) {
-    return <p>Cargando ranking...</p>;
-  }
-
   return (
-    <div>
-      <h1>Ranking</h1>
-      <h2>{nombreQuiniela}</h2>
+    <div className="page">
+      <div className="container">
+        <div className="header">
+          <div>
+            <h1>Ranking</h1>
+            <p>{nombreQuiniela}</p>
+          </div>
+          <button className="btn btn-secondary" onClick={() => navigate('/mis-quinielas')}>
+            Volver
+          </button>
+        </div>
 
-      {ranking.length === 0 ? (
-        <p>No hay participantes todavía.</p>
-      ) : (
-        <table border={1} cellPadding={8}>
-          <thead>
-            <tr>
-              <th>Posición</th>
-              <th>Jugador</th>
-              <th>Puntos</th>
-            </tr>
-          </thead>
+        <div className="card">
+          {cargando ? (
+            <p>Cargando ranking...</p>
+          ) : ranking.length === 0 ? (
+            <div className="empty">No hay participantes todavía.</div>
+          ) : (
+            <div className="table-wrapper">
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th>Posición</th>
+                    <th>Jugador</th>
+                    <th>Puntos</th>
+                  </tr>
+                </thead>
 
-          <tbody>
-            {ranking.map((item, index) => (
-              <tr key={item.id}>
-                <td>{index + 1}</td>
-                <td>{obtenerNombreJugador(item.perfiles)}</td>
-                <td>{item.puntos_totales}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
-
-      <br />
-
-      <button onClick={() => navigate('/mis-quinielas')}>Volver</button>
+                <tbody>
+                  {ranking.map((item, index) => (
+                    <tr key={item.id}>
+                      <td>#{index + 1}</td>
+                      <td>{obtenerNombreJugador(item.perfiles)}</td>
+                      <td>
+                        <strong>{item.puntos_totales}</strong>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

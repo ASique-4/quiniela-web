@@ -16,6 +16,7 @@ type Participacion = {
 export default function MisQuinielas() {
   const navigate = useNavigate();
   const [participaciones, setParticipaciones] = useState<Participacion[]>([]);
+  const [cargando, setCargando] = useState(true);
 
   useEffect(() => {
     cargarMisQuinielas();
@@ -23,15 +24,13 @@ export default function MisQuinielas() {
 
   function obtenerQuiniela(quinielas: Quiniela | Quiniela[] | null) {
     if (!quinielas) return null;
-
-    if (Array.isArray(quinielas)) {
-      return quinielas[0] || null;
-    }
-
+    if (Array.isArray(quinielas)) return quinielas[0] || null;
     return quinielas;
   }
 
   async function cargarMisQuinielas() {
+    setCargando(true);
+
     const { data: sessionData } = await supabase.auth.getSession();
     const userId = sessionData.session?.user.id;
 
@@ -54,46 +53,74 @@ export default function MisQuinielas() {
 
     if (error) {
       alert(error.message);
+      setCargando(false);
       return;
     }
 
     setParticipaciones((data as unknown as Participacion[]) || []);
+    setCargando(false);
   }
 
   return (
-    <div>
-      <h1>Mis quinielas</h1>
-
-      {participaciones.length === 0 && <p>No estás en ninguna quiniela.</p>}
-
-      {participaciones.map((item, index) => {
-        const quiniela = obtenerQuiniela(item.quinielas);
-
-        if (!quiniela) {
-          return null;
-        }
-
-        return (
-          <div key={`${quiniela.id}-${index}`}>
-            <h3>{quiniela.nombre}</h3>
-
-            <p>Código: {quiniela.codigo_invitacion}</p>
-            <p>Puntos: {item.puntos_totales}</p>
-
-            <button onClick={() => navigate(`/quiniela/${quiniela.id}/partidos`)}>
-              Ver partidos
-            </button>
-
-            <button onClick={() => navigate(`/quiniela/${quiniela.id}/ranking`)}>
-              Ver ranking
-            </button>
-
-            <hr />
+    <div className="page">
+      <div className="container">
+        <div className="header">
+          <div>
+            <h1>Mis quinielas</h1>
+            <p>Consulta tus quinielas, puntos y ranking.</p>
           </div>
-        );
-      })}
+          <button className="btn btn-secondary" onClick={() => navigate('/home')}>
+            Volver
+          </button>
+        </div>
 
-      <button onClick={() => navigate('/home')}>Volver</button>
+        {cargando ? (
+          <div className="card">Cargando...</div>
+        ) : participaciones.length === 0 ? (
+          <div className="card empty">No estás en ninguna quiniela todavía.</div>
+        ) : (
+          <div className="grid grid-2">
+            {participaciones.map((item, index) => {
+              const quiniela = obtenerQuiniela(item.quinielas);
+
+              if (!quiniela) return null;
+
+              return (
+                <div className="card" key={`${quiniela.id}-${index}`}>
+                  <h2 style={{ marginTop: 0 }}>{quiniela.nombre}</h2>
+
+                  <p>
+                    Código:{' '}
+                    <strong style={{ letterSpacing: 1 }}>
+                      {quiniela.codigo_invitacion}
+                    </strong>
+                  </p>
+
+                  <p>
+                    Puntos: <strong>{item.puntos_totales}</strong>
+                  </p>
+
+                  <div className="actions">
+                    <button
+                      className="btn btn-primary"
+                      onClick={() => navigate(`/quiniela/${quiniela.id}/partidos`)}
+                    >
+                      Ver partidos
+                    </button>
+
+                    <button
+                      className="btn btn-secondary"
+                      onClick={() => navigate(`/quiniela/${quiniela.id}/ranking`)}
+                    >
+                      Ver ranking
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

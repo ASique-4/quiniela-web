@@ -25,36 +25,46 @@ export default function Login() {
   }
 
   return (
-    <div>
-      <h1>Iniciar sesión</h1>
+    <div className="auth-page">
+      <div className="auth-card">
+        <h1 className="auth-title">Quiniela Web</h1>
+        <p className="auth-subtitle">Inicia sesión para hacer tus pronósticos.</p>
 
-      <form onSubmit={handleLogin}>
-        <div>
-          <label>Correo</label>
-          <input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-          />
-        </div>
+        <form className="form" onSubmit={handleLogin}>
+          <div className="form-group">
+            <label>Correo</label>
+            <input
+              type="email"
+              value={email}
+              placeholder="tu@email.com"
+              onChange={(e) => setEmail(e.target.value)}
+              required
+            />
+          </div>
 
-        <div>
-          <label>Contraseña</label>
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-          />
-        </div>
+          <div className="form-group">
+            <label>Contraseña</label>
+            <input
+              type="password"
+              value={password}
+              placeholder="••••••••"
+              onChange={(e) => setPassword(e.target.value)}
+              required
+            />
+          </div>
 
-        <button type="submit">Entrar</button>
-      </form>
+          <button className="btn btn-primary" type="submit">
+            Entrar
+          </button>
+        </form>
 
-      <p>
-        ¿No tienes cuenta? <Link to="/registro">Crear cuenta</Link>
-      </p>
+        <p style={{ marginTop: 20 }}>
+          ¿No tienes cuenta?{' '}
+          <Link className="link" to="/registro">
+            Crear cuenta
+          </Link>
+        </p>
+      </div>
     </div>
   );
 }

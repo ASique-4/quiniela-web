@@ -16,7 +16,6 @@ export default function UnirseQuiniela() {
     const userId = sessionData.session?.user.id;
 
     if (!userId) {
-      alert('Debes iniciar sesión');
       navigate('/login');
       return;
     }
@@ -63,28 +62,37 @@ export default function UnirseQuiniela() {
   }
 
   return (
-    <div>
-      <h1>Unirme a quiniela</h1>
-
-      <form onSubmit={unirse}>
-        <div>
-          <label>Código de invitación</label>
-          <input
-            type="text"
-            value={codigo}
-            onChange={(e) => setCodigo(e.target.value)}
-            required
-          />
+    <div className="page">
+      <div className="container">
+        <div className="header">
+          <div>
+            <h1>Unirme a quiniela</h1>
+            <p>Ingresa el código que te compartieron.</p>
+          </div>
+          <button className="btn btn-secondary" onClick={() => navigate('/home')}>
+            Volver
+          </button>
         </div>
 
-        <button type="submit" disabled={cargando}>
-          {cargando ? 'Uniendo...' : 'Unirme'}
-        </button>
-      </form>
+        <div className="card">
+          <form className="form" onSubmit={unirse}>
+            <div className="form-group">
+              <label>Código de invitación</label>
+              <input
+                type="text"
+                value={codigo}
+                placeholder="Ej. ABC123"
+                onChange={(e) => setCodigo(e.target.value.toUpperCase())}
+                required
+              />
+            </div>
 
-      <br />
-
-      <button onClick={() => navigate('/home')}>Volver</button>
+            <button className="btn btn-primary" type="submit" disabled={cargando}>
+              {cargando ? 'Uniendo...' : 'Unirme'}
+            </button>
+          </form>
+        </div>
+      </div>
     </div>
   );
 }

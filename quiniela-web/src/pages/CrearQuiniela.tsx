@@ -49,7 +49,6 @@ export default function CrearQuiniela() {
     const userId = sessionData.session?.user.id;
 
     if (!userId) {
-      alert('Debes iniciar sesión');
       navigate('/login');
       return;
     }
@@ -93,43 +92,58 @@ export default function CrearQuiniela() {
   }
 
   return (
-    <div>
-      <h1>Crear quiniela</h1>
-
-      <form onSubmit={crearQuiniela}>
-        <div>
-          <label>Nombre de la quiniela</label>
-          <input
-            type="text"
-            value={nombre}
-            onChange={(e) => setNombre(e.target.value)}
-            required
-          />
+    <div className="page">
+      <div className="container">
+        <div className="header">
+          <div>
+            <h1>Crear quiniela</h1>
+            <p>Crea una quiniela y comparte el código con tus amigos.</p>
+          </div>
+          <button className="btn btn-secondary" onClick={() => navigate('/home')}>
+            Volver
+          </button>
         </div>
 
-        <div>
-          <label>Torneo</label>
-          <select
-            value={torneoId}
-            onChange={(e) => setTorneoId(e.target.value)}
-            required
-          >
-            {torneos.map((torneo) => (
-              <option key={torneo.id} value={torneo.id}>
-                {torneo.nombre}
-              </option>
-            ))}
-          </select>
+        <div className="card">
+          {torneos.length === 0 ? (
+            <div className="empty">
+              No hay torneos registrados. Crea uno desde el panel admin.
+            </div>
+          ) : (
+            <form className="form" onSubmit={crearQuiniela}>
+              <div className="form-group">
+                <label>Nombre de la quiniela</label>
+                <input
+                  type="text"
+                  value={nombre}
+                  placeholder="Ej. Quiniela de amigos"
+                  onChange={(e) => setNombre(e.target.value)}
+                  required
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Torneo</label>
+                <select
+                  value={torneoId}
+                  onChange={(e) => setTorneoId(e.target.value)}
+                  required
+                >
+                  {torneos.map((torneo) => (
+                    <option key={torneo.id} value={torneo.id}>
+                      {torneo.nombre}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <button className="btn btn-primary" type="submit" disabled={cargando}>
+                {cargando ? 'Creando...' : 'Crear quiniela'}
+              </button>
+            </form>
+          )}
         </div>
-
-        <button type="submit" disabled={cargando}>
-          {cargando ? 'Creando...' : 'Crear quiniela'}
-        </button>
-      </form>
-
-      <br />
-
-      <button onClick={() => navigate('/home')}>Volver</button>
+      </div>
     </div>
   );
 }

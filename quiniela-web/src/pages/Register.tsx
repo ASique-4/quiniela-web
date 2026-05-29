@@ -17,7 +17,7 @@ export default function Register() {
       password,
       options: {
         data: {
-          nombre: nombre,
+          nombre,
         },
       },
     });
@@ -27,51 +27,62 @@ export default function Register() {
       return;
     }
 
-    alert('Usuario registrado correctamente. Revisa tu correo si Supabase pide confirmación.');
+    alert('Usuario registrado correctamente');
     navigate('/login');
   }
 
   return (
-    <div>
-      <h1>Registro</h1>
+    <div className="auth-page">
+      <div className="auth-card">
+        <h1 className="auth-title">Crear cuenta</h1>
+        <p className="auth-subtitle">Regístrate para participar en quinielas.</p>
 
-      <form onSubmit={handleRegister}>
-        <div>
-          <label>Nombre</label>
-          <input
-            type="text"
-            value={nombre}
-            onChange={(e) => setNombre(e.target.value)}
-            required
-          />
-        </div>
+        <form className="form" onSubmit={handleRegister}>
+          <div className="form-group">
+            <label>Nombre</label>
+            <input
+              type="text"
+              value={nombre}
+              placeholder="Tu nombre"
+              onChange={(e) => setNombre(e.target.value)}
+              required
+            />
+          </div>
 
-        <div>
-          <label>Correo</label>
-          <input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-          />
-        </div>
+          <div className="form-group">
+            <label>Correo</label>
+            <input
+              type="email"
+              value={email}
+              placeholder="tu@email.com"
+              onChange={(e) => setEmail(e.target.value)}
+              required
+            />
+          </div>
 
-        <div>
-          <label>Contraseña</label>
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-          />
-        </div>
+          <div className="form-group">
+            <label>Contraseña</label>
+            <input
+              type="password"
+              value={password}
+              placeholder="Mínimo 6 caracteres"
+              onChange={(e) => setPassword(e.target.value)}
+              required
+            />
+          </div>
 
-        <button type="submit">Registrarme</button>
-      </form>
+          <button className="btn btn-primary" type="submit">
+            Registrarme
+          </button>
+        </form>
 
-      <p>
-        ¿Ya tienes cuenta? <Link to="/login">Iniciar sesión</Link>
-      </p>
+        <p style={{ marginTop: 20 }}>
+          ¿Ya tienes cuenta?{' '}
+          <Link className="link" to="/login">
+            Iniciar sesión
+          </Link>
+        </p>
+      </div>
     </div>
   );
 }
