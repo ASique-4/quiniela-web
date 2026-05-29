@@ -2,13 +2,15 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../services/supabase';
 
+type Quiniela = {
+  id: number;
+  nombre: string;
+  codigo_invitacion: string;
+};
+
 type Participacion = {
   puntos_totales: number;
-  quinielas: {
-    id: number;
-    nombre: string;
-    codigo_invitacion: string;
-  };
+  quinielas: Quiniela | Quiniela[] | null;
 };
 
 export default function MisQuinielas() {
@@ -18,6 +20,16 @@ export default function MisQuinielas() {
   useEffect(() => {
     cargarMisQuinielas();
   }, []);
+
+  function obtenerQuiniela(quinielas: Quiniela | Quiniela[] | null) {
+    if (!quinielas) return null;
+
+    if (Array.isArray(quinielas)) {
+      return quinielas[0] || null;
+    }
+
+    return quinielas;
+  }
 
   async function cargarMisQuinielas() {
     const { data: sessionData } = await supabase.auth.getSession();
@@ -45,7 +57,7 @@ export default function MisQuinielas() {
       return;
     }
 
-    setParticipaciones((data as Participacion[]) || []);
+    setParticipaciones((data as unknown as Participacion[]) || []);
   }
 
   return (
@@ -54,20 +66,32 @@ export default function MisQuinielas() {
 
       {participaciones.length === 0 && <p>No estás en ninguna quiniela.</p>}
 
-      {participaciones.map((item) => (
-        <div key={item.quinielas.id}>
-          <h3>{item.quinielas.nombre}</h3>
-          <p>Código: {item.quinielas.codigo_invitacion}</p>
-          <p>Puntos: {item.puntos_totales}</p>
-          <button onClick={() => navigate(`/quiniela/${item.quinielas.id}/partidos`)}>
-            Ver partidos
+      {participaciones.map((item, index) => {
+        const quiniela = obtenerQuiniela(item.quinielas);
+
+        if (!quiniela) {
+          return null;
+        }
+
+        return (
+          <div key={`${quiniela.id}-${index}`}>
+            <h3>{quiniela.nombre}</h3>
+
+            <p>Código: {quiniela.codigo_invitacion}</p>
+            <p>Puntos: {item.puntos_totales}</p>
+
+            <button onClick={() => navigate(`/quiniela/${quiniela.id}/partidos`)}>
+              Ver partidos
             </button>
-            <button onClick={() => navigate(`/quiniela/${item.quinielas.id}/ranking`)}>
-  Ver ranking
-</button>
-          <hr />
-        </div>
-      ))}
+
+            <button onClick={() => navigate(`/quiniela/${quiniela.id}/ranking`)}>
+              Ver ranking
+            </button>
+
+            <hr />
+          </div>
+        );
+      })}
 
       <button onClick={() => navigate('/home')}>Volver</button>
     </div>
