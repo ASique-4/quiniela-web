@@ -62,6 +62,7 @@ export default function Admin() {
   const [nombreEquipo, setNombreEquipo] = useState('');
 
   const [torneoId, setTorneoId] = useState('');
+  const [torneoFiltroId, setTorneoFiltroId] = useState('');
   const [equipoLocalId, setEquipoLocalId] = useState('');
   const [equipoVisitanteId, setEquipoVisitanteId] = useState('');
   const [fechaPartido, setFechaPartido] = useState('');
@@ -106,13 +107,13 @@ export default function Admin() {
   }
 
   async function cargarDatosIniciales() {
-    await Promise.all([
-        cargarEquipos(),
-        cargarTorneos(),
-        cargarPartidos(),
-        cargarPerfiles(),
-    ]);
+    await Promise.all([cargarEquipos(), cargarPerfiles()]);
+    const primerTorneoId = await cargarTorneos();
+
+    if (primerTorneoId) {
+      await cargarPartidos(primerTorneoId);
     }
+  }
 
   async function cargarEquipos() {
     const { data, error } = await supabase
@@ -141,17 +142,31 @@ export default function Admin() {
 
     if (error) {
       alert(error.message);
-      return;
+      return '';
     }
 
     setTorneos(data || []);
 
     if (data && data.length > 0) {
-      setTorneoId(String(data[0].id));
+      const primerId = String(data[0].id);
+
+      setTorneoId(primerId);
+      setTorneoFiltroId(primerId);
+
+      return primerId;
     }
+
+    return '';
   }
 
-  async function cargarPartidos() {
+  async function cargarPartidos(torneoSeleccionadoId?: string) {
+    const filtro = torneoSeleccionadoId || torneoFiltroId;
+
+    if (!filtro) {
+      setPartidos([]);
+      return;
+    }
+
     const { data, error } = await supabase
       .from('partidos')
       .select(`
@@ -168,6 +183,7 @@ export default function Admin() {
           nombre
         )
       `)
+      .eq('torneo_id', Number(filtro))
       .order('fecha', { ascending: true });
 
     if (error) {
@@ -301,7 +317,8 @@ export default function Admin() {
 
     alert('Partido creado');
     setFechaPartido('');
-    cargarPartidos();
+    setTorneoFiltroId(torneoId);
+    cargarPartidos(torneoId);
   }
 
   function cambiarResultado(
@@ -764,7 +781,24 @@ export default function Admin() {
 
         <div className="card">
           <h2 className="section-title">Partidos registrados</h2>
-
+            {torneos.length > 0 && (
+            <div className="form-group" style={{ marginBottom: 18 }}>
+              <label>Filtrar partidos por torneo</label>
+              <select
+                value={torneoFiltroId}
+                onChange={(e) => {
+                  setTorneoFiltroId(e.target.value);
+                  cargarPartidos(e.target.value);
+                }}
+              >
+                {torneos.map((torneo) => (
+                  <option key={torneo.id} value={torneo.id}>
+                    {torneo.nombre}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
           {partidos.length === 0 ? (
             <div className="empty">No hay partidos registrados.</div>
           ) : (
