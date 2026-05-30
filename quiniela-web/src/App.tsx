@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 
 import Login from './pages/Login';
 import Register from './pages/Register';
@@ -12,7 +12,7 @@ import Ranking from './pages/Ranking';
 
 function App() {
   return (
-    <BrowserRouter basename="/quiniela-web">
+    <HashRouter>
       <Routes>
         <Route path="/" element={<Navigate to="/login" />} />
 
@@ -30,7 +30,7 @@ function App() {
 
         <Route path="/admin" element={<Admin />} />
       </Routes>
-    </BrowserRouter>
+    </HashRouter>
   );
 }
 
