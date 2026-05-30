@@ -13,6 +13,20 @@ type Perfil = {
   nombre: string;
 };
 
+type Pronostico = {
+  usuario_id: string;
+  partido_id: number;
+  goles_local_pred: number;
+  goles_visitante_pred: number;
+};
+
+type Partido = {
+  id: number;
+  goles_local: number | null;
+  goles_visitante: number | null;
+  estado: string;
+};
+
 type RankingItem = {
   id: number;
   usuario_id: string;
@@ -32,12 +46,42 @@ export default function Ranking() {
     cargarRanking();
   }, []);
 
+  function calcularPuntos(
+    golesLocalReal: number,
+    golesVisitanteReal: number,
+    golesLocalPred: number,
+    golesVisitantePred: number
+  ) {
+    if (
+      golesLocalReal === golesLocalPred &&
+      golesVisitanteReal === golesVisitantePred
+    ) {
+      return 3;
+    }
+
+    const resultadoReal =
+      golesLocalReal > golesVisitanteReal
+        ? 'LOCAL'
+        : golesLocalReal < golesVisitanteReal
+        ? 'VISITANTE'
+        : 'EMPATE';
+
+    const resultadoPred =
+      golesLocalPred > golesVisitantePred
+        ? 'LOCAL'
+        : golesLocalPred < golesVisitantePred
+        ? 'VISITANTE'
+        : 'EMPATE';
+
+    return resultadoReal === resultadoPred ? 1 : 0;
+  }
+
   async function cargarRanking() {
     setCargando(true);
 
     const { data: quiniela, error: quinielaError } = await supabase
       .from('quinielas')
-      .select('nombre')
+      .select('nombre, torneo_id')
       .eq('id', Number(id))
       .maybeSingle();
 
@@ -47,13 +91,18 @@ export default function Ranking() {
       return;
     }
 
-    setNombreQuiniela(quiniela?.nombre || 'Quiniela');
+    if (!quiniela) {
+      alert('No se encontró la quiniela');
+      setCargando(false);
+      return;
+    }
+
+    setNombreQuiniela(quiniela.nombre || 'Quiniela');
 
     const { data: participantesData, error: participantesError } = await supabase
       .from('quiniela_participantes')
       .select('id, usuario_id, puntos_totales')
-      .eq('quiniela_id', Number(id))
-      .order('puntos_totales', { ascending: false });
+      .eq('quiniela_id', Number(id));
 
     if (participantesError) {
       alert(participantesError.message);
@@ -62,13 +111,14 @@ export default function Ranking() {
     }
 
     const participantes = (participantesData || []) as Participante[];
-    const usuariosIds = participantes.map((p) => p.usuario_id);
 
-    if (usuariosIds.length === 0) {
+    if (participantes.length === 0) {
       setRanking([]);
       setCargando(false);
       return;
     }
+
+    const usuariosIds = participantes.map((p) => p.usuario_id);
 
     const { data: perfilesData, error: perfilesError } = await supabase
       .from('perfiles')
@@ -81,22 +131,80 @@ export default function Ranking() {
       return;
     }
 
+    const { data: partidosData, error: partidosError } = await supabase
+      .from('partidos')
+      .select('id, goles_local, goles_visitante, estado')
+      .eq('torneo_id', quiniela.torneo_id)
+      .eq('estado', 'finalizado');
+
+    if (partidosError) {
+      alert(partidosError.message);
+      setCargando(false);
+      return;
+    }
+
+    const { data: pronosticosData, error: pronosticosError } = await supabase
+      .from('pronosticos')
+      .select('usuario_id, partido_id, goles_local_pred, goles_visitante_pred')
+      .eq('quiniela_id', Number(id));
+
+    if (pronosticosError) {
+      alert(pronosticosError.message);
+      setCargando(false);
+      return;
+    }
+
     const perfiles = (perfilesData || []) as Perfil[];
+    const partidos = (partidosData || []) as Partido[];
+    const pronosticos = (pronosticosData || []) as Pronostico[];
 
     const perfilesMap = new Map<string, string>();
-
     perfiles.forEach((perfil) => {
       perfilesMap.set(perfil.id, perfil.nombre || 'Sin nombre');
     });
 
-    const rankingCompleto: RankingItem[] = participantes.map((participante) => ({
-      id: participante.id,
-      usuario_id: participante.usuario_id,
-      puntos_totales: participante.puntos_totales,
-      nombre: perfilesMap.get(participante.usuario_id) || 'Sin nombre',
-    }));
+    const partidosMap = new Map<number, Partido>();
+    partidos.forEach((partido) => {
+      partidosMap.set(partido.id, partido);
+    });
 
-    setRanking(rankingCompleto);
+    const rankingCalculado: RankingItem[] = participantes.map((participante) => {
+      const pronosticosUsuario = pronosticos.filter(
+        (p) => p.usuario_id === participante.usuario_id
+      );
+
+      let total = 0;
+
+      pronosticosUsuario.forEach((pronostico) => {
+        const partido = partidosMap.get(pronostico.partido_id);
+
+        if (
+          !partido ||
+          partido.goles_local === null ||
+          partido.goles_visitante === null
+        ) {
+          return;
+        }
+
+        total += calcularPuntos(
+          partido.goles_local,
+          partido.goles_visitante,
+          pronostico.goles_local_pred,
+          pronostico.goles_visitante_pred
+        );
+      });
+
+      return {
+        id: participante.id,
+        usuario_id: participante.usuario_id,
+        nombre: perfilesMap.get(participante.usuario_id) || 'Sin nombre',
+        puntos_totales: total,
+      };
+    });
+
+    rankingCalculado.sort((a, b) => b.puntos_totales - a.puntos_totales);
+
+    setRanking(rankingCalculado);
     setCargando(false);
   }
 
